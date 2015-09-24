@@ -1,9 +1,11 @@
 import snmpclient
 
-router = '10.42.1.1'
-authdata = {'community': 'public', 'version': snmpclient.V2C}
+router = '10.100.184.62'
+port = 161
+authdata = [{'community': 'public', 'version': snmpclient.V2C},
+            {'community': 'private', 'version': snmpclient.V2C}]
 
-client = snmpclient.SnmpClient(router, [authdata])
+client = snmpclient.SnmpClient(router, port, authdata)
 print client.alive
 print client.get('SNMPv2-MIB::sysName.0')
 print client.gettable('UDP-MIB::udpLocalAddress')
