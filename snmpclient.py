@@ -46,13 +46,17 @@ def load_mibs(*modules):
             raise
 
 # Load basic mibs that come with pysnmp
-load_mibs('SNMPv2-MIB','IF-MIB','IP-MIB','HOST-RESOURCES-MIB','FIBRE-CHANNEL-FE-MIB')
+load_mibs('SNMPv2-MIB',
+          'IF-MIB',
+          'IP-MIB',
+          'HOST-RESOURCES-MIB',
+          'FIBRE-CHANNEL-FE-MIB')
 
 def nodeinfo(oid):
     """Translate dotted-decimal oid to a tuple with symbolic info"""
     if isinstance(oid, basestring):
         oid = tuple([int(x) for x in oid.split('.') if x])
-    return (__mibViewController.getNodeLocation(oid), 
+    return (__mibViewController.getNodeLocation(oid),
             __mibViewController.getNodeName(oid))
 
 def nodename(oid):
@@ -63,7 +67,7 @@ def nodename(oid):
     if noid:
         name += '.' + noid
     return name
-        
+
 def nodeid(oid):
     """Translate named oid to dotted-decimal format"""
     ids = oid.split('.')
@@ -86,7 +90,10 @@ class SnmpClient(object):
         noid = nodeid('SNMPv2-MIB::sysName.0')
         for auth in authorizations:
             (errorIndication, errorStatus, errorIndex, varBinds) = \
-                cmdgen.CommandGenerator().getCmd(auth, cmdgen.UdpTransportTarget((self.host, self.port)), noid)
+                cmdgen.CommandGenerator().getCmd(
+                    cmdgen.CommunityData(auth['community'], auth['version']),
+                    cmdgen.UdpTransportTarget((self.host, self.port)),
+                    noid)
             if errorIndication == 'requestTimedOut':
                 continue
             else:
@@ -98,7 +105,10 @@ class SnmpClient(object):
         """Get a specific node in the tree"""
         noid = nodeid(oid)
         (errorIndication, errorStatus, errorIndex, varBinds) = \
-            cmdgen.CommandGenerator().getCmd(self.auth, cmdgen.UdpTransportTarget((self.host, self.port)), noid)
+            cmdgen.CommandGenerator().getCmd(
+                    cmdgen.CommunityData(auth['community'], auth['version']),
+                cmdgen.UdpTransportTarget((self.host, self.port)),
+                noid)
         if errorIndication:
             raise RuntimeError("SNMPget of %s on %s failed" % (oid, self.host))
         return varBinds[0][1]
@@ -107,7 +117,10 @@ class SnmpClient(object):
         """Get a complete subtable"""
         noid = nodeid(oid)
         (errorIndication, errorStatus, errorIndex, varBinds) = \
-            cmdgen.CommandGenerator().nextCmd(self.auth, cmdgen.UdpTransportTarget((self.host, self.port)), noid)
+            cmdgen.CommandGenerator().nextCmd(
+                    cmdgen.CommunityData(auth['community'], auth['version']),
+                cmdgen.UdpTransportTarget((self.host, self.port)),
+                noid)
         if errorIndication:
             raise RuntimeError("SNMPget of %s on %s failed" % (oid, self.host))
         return [x[0] for x in varBinds]
