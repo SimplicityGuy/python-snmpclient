@@ -106,7 +106,8 @@ class SnmpClient(object):
         noid = nodeid(oid)
         (errorIndication, errorStatus, errorIndex, varBinds) = \
             cmdgen.CommandGenerator().getCmd(
-                    cmdgen.CommunityData(auth['community'], auth['version']),
+                    cmdgen.CommunityData(self.auth['community'],
+                                         self.auth['version']),
                 cmdgen.UdpTransportTarget((self.host, self.port)),
                 noid)
         if errorIndication:
@@ -118,7 +119,8 @@ class SnmpClient(object):
         noid = nodeid(oid)
         (errorIndication, errorStatus, errorIndex, varBinds) = \
             cmdgen.CommandGenerator().nextCmd(
-                    cmdgen.CommunityData(auth['community'], auth['version']),
+                    cmdgen.CommunityData(self.auth['community'],
+                                         self.auth['version']),
                 cmdgen.UdpTransportTarget((self.host, self.port)),
                 noid)
         if errorIndication:
