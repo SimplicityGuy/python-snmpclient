@@ -91,7 +91,8 @@ class SnmpClient(object):
         for auth in authorizations:
             (errorIndication, errorStatus, errorIndex, varBinds) = \
                 cmdgen.CommandGenerator().getCmd(
-                    cmdgen.CommunityData(auth['community'], auth['version']),
+                    cmdgen.CommunityData(auth['community'],
+                                         mpModel=auth['version']),
                     cmdgen.UdpTransportTarget((self.host, self.port)),
                     noid)
             if errorIndication == 'requestTimedOut':
@@ -107,7 +108,7 @@ class SnmpClient(object):
         (errorIndication, errorStatus, errorIndex, varBinds) = \
             cmdgen.CommandGenerator().getCmd(
                     cmdgen.CommunityData(self.auth['community'],
-                                         self.auth['version']),
+                                         mpModel=self.auth['version']),
                 cmdgen.UdpTransportTarget((self.host, self.port)),
                 noid)
         if errorIndication:
@@ -120,7 +121,7 @@ class SnmpClient(object):
         (errorIndication, errorStatus, errorIndex, varBinds) = \
             cmdgen.CommandGenerator().nextCmd(
                     cmdgen.CommunityData(self.auth['community'],
-                                         self.auth['version']),
+                                         mpModel=self.auth['version']),
                 cmdgen.UdpTransportTarget((self.host, self.port)),
                 noid)
         if errorIndication:
