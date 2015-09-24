@@ -31,9 +31,11 @@ V2 = V2C = 1
 __mibBuilder = builder.MibBuilder()
 __mibViewController = view.MibViewController(__mibBuilder)
 
+
 def add_mib_path(*path):
     """Add a directory to the MIB search path"""
     __mibBuilder.setMibPath(*(__mibBuilder.getMibPath() + path))
+
 
 def load_mibs(*modules):
     """Load one or more mibs"""
@@ -45,12 +47,6 @@ def load_mibs(*modules):
                 continue
             raise
 
-# Load basic mibs that come with pysnmp
-load_mibs('SNMPv2-MIB',
-          'IF-MIB',
-          'IP-MIB',
-          'HOST-RESOURCES-MIB',
-          'FIBRE-CHANNEL-FE-MIB')
 
 def nodeinfo(oid):
     """Translate dotted-decimal oid to a tuple with symbolic info"""
@@ -58,6 +54,7 @@ def nodeinfo(oid):
         oid = tuple([int(x) for x in oid.split('.') if x])
     return (__mibViewController.getNodeLocation(oid),
             __mibViewController.getNodeName(oid))
+
 
 def nodename(oid):
     """Translate dotted-decimal oid or oid tuple to symbolic name"""
@@ -68,6 +65,7 @@ def nodename(oid):
         name += '.' + noid
     return name
 
+
 def nodeid(oid):
     """Translate named oid to dotted-decimal format"""
     ids = oid.split('.')
@@ -77,6 +75,15 @@ def nodeid(oid):
     oid = mibnode.getName() + ids
     return oid
 
+
+# Load basic mibs that come with pysnmp
+load_mibs('SNMPv2-MIB',
+          'IF-MIB',
+          'IP-MIB',
+          'HOST-RESOURCES-MIB',
+          'FIBRE-CHANNEL-FE-MIB')
+
+
 class SnmpClient(object):
     """Easy access to an snmp deamon on a host"""
 
@@ -85,6 +92,7 @@ class SnmpClient(object):
         self.host = host
         self.port = port
         self.alive = False
+        self.transport = cmdgen.UdpTransportTarget((self.host, self.port))
 
         # Which community to use
         noid = nodeid('SNMPv2-MIB::sysName.0')
@@ -93,7 +101,7 @@ class SnmpClient(object):
                 cmdgen.CommandGenerator().getCmd(
                     cmdgen.CommunityData(auth['community'],
                                          mpModel=auth['version']),
-                    cmdgen.UdpTransportTarget((self.host, self.port)),
+                    self.transport,
                     noid)
             if errorIndication == 'requestTimedOut':
                 continue
@@ -107,9 +115,9 @@ class SnmpClient(object):
         noid = nodeid(oid)
         (errorIndication, errorStatus, errorIndex, varBinds) = \
             cmdgen.CommandGenerator().getCmd(
-                    cmdgen.CommunityData(self.auth['community'],
-                                         mpModel=self.auth['version']),
-                cmdgen.UdpTransportTarget((self.host, self.port)),
+                cmdgen.CommunityData(self.auth['community'],
+                                     mpModel=self.auth['version']),
+                self.transport,
                 noid)
         if errorIndication:
             raise RuntimeError("SNMPget of %s on %s failed" % (oid, self.host))
@@ -120,9 +128,9 @@ class SnmpClient(object):
         noid = nodeid(oid)
         (errorIndication, errorStatus, errorIndex, varBinds) = \
             cmdgen.CommandGenerator().nextCmd(
-                    cmdgen.CommunityData(self.auth['community'],
-                                         mpModel=self.auth['version']),
-                cmdgen.UdpTransportTarget((self.host, self.port)),
+                cmdgen.CommunityData(self.auth['community'],
+                                     mpModel=self.auth['version']),
+                self.transport,
                 noid)
         if errorIndication:
             raise RuntimeError("SNMPget of %s on %s failed" % (oid, self.host))
