@@ -19,11 +19,12 @@
 import pysnmp.entity.rfc3413.oneliner.cmdgen as cmdgen
 from pysnmp.smi import builder, view
 from pysnmp.smi.error import SmiError
+from pysnmp.proto import rfc1902
 
 __all__ = ['V1', 'V2', 'V2C', 'add_mib_path', 'load_mibs',
            'nodeinfo', 'nodename', 'nodeid', 'SnmpClient', 'cmdgen']
 
-# Snmp version constants
+# SNMP version constants
 V1 = 0
 V2 = V2C = 1
 
@@ -34,7 +35,8 @@ __mibViewController = view.MibViewController(__mibBuilder)
 
 def add_mib_path(*path):
     """Add a directory to the MIB search path"""
-    __mibBuilder.setMibPath(*(__mibBuilder.getMibPath() + path))
+    mibPath = __mibBuilder.getMibPath() + path
+    __mibBuilder.setMibPath(*mibPath)
 
 
 def load_mibs(*modules):
@@ -87,16 +89,16 @@ load_mibs('SNMPv2-MIB',
 class SnmpClient(object):
     """Easy access to an snmp deamon on a host"""
 
-    def __init__(self, host, port, authorizations):
+    def __init__(self, host, port, read_authorizations, write_authorizations):
         """Set up the client and detect the community to use"""
         self.host = host
         self.port = port
         self.alive = False
         self.transport = cmdgen.UdpTransportTarget((self.host, self.port))
 
-        # Which community to use
+        # Determine which community to use for reading values
         noid = nodeid('SNMPv2-MIB::sysName.0')
-        for auth in authorizations:
+        for auth in read_authorizations:
             (errorIndication, errorStatus, errorIndex, varBinds) = \
                 cmdgen.CommandGenerator().getCmd(
                     cmdgen.CommunityData(auth['community'],
@@ -107,20 +109,64 @@ class SnmpClient(object):
                 continue
             else:
                 self.alive = True
-                self.auth = auth
+                self.readauth = cmdgen.CommunityData(auth['community'],
+                                                     mpModel=auth['version'])
                 break
+
+        # Don't determine the write authorization since there's no temporary
+        # location within SNMP to write to. Choose the first authorization.
+        for auth in write_authorizations:
+            self.writeauth = cmdgen.CommunityData(auth['community'],
+                                                  mpModel=auth['version'])
+            break
 
     def get(self, oid):
         """Get a specific node in the tree"""
         noid = nodeid(oid)
         (errorIndication, errorStatus, errorIndex, varBinds) = \
             cmdgen.CommandGenerator().getCmd(
-                cmdgen.CommunityData(self.auth['community'],
-                                     mpModel=self.auth['version']),
+                self.readauth,
                 self.transport,
                 noid)
         if errorIndication:
             raise RuntimeError("SNMPget of %s on %s failed" % (oid, self.host))
+        return varBinds[0][1]
+
+    def set(self, oid, value):
+        """Set a specific value to a node in the tree"""
+        initial_value = self.get(oid)
+
+        # Types from RFC-1902
+        if isinstance(initial_value, rfc1902.Counter32):
+            set_value = rfc1902.Counter32(str(value))
+        elif isinstance(initial_value, rfc1902.Counter64):
+            set_value = rfc1902.Counter64(str(value))
+        elif isinstance(initial_value, rfc1902.Gauge32):
+            set_value = rfc1902.Gauge32(str(value))
+        elif isinstance(initial_value, rfc1902.Integer):
+            set_value = rfc1902.Integer(str(value))
+        elif isinstance(initial_value, rfc1902.Integer32):
+            set_value = rfc1902.Integer32(str(value))
+        elif isinstance(initial_value, rfc1902.IpAddress):
+            set_value = rfc1902.IpAddress(str(value))
+        elif isinstance(initial_value, rfc1902.OctetString):
+            set_value = rfc1902.OctetString(str(value))
+        elif isinstance(initial_value, rfc1902.TimeTicks):
+            set_value = rfc1902.TimeTicks(str(value))
+        elif isinstance(initial_value, rfc1902.Unsigned32):
+            set_value = rfc1902.Unsigned32(str(value))
+        else:
+            raise RuntimeError("Unknown type %s" % type(initial_value))
+
+        noid = nodeid(oid)
+        (errorIndication, errorStatus, errorIndex, varBinds) = \
+            cmdgen.CommandGenerator().setCmd(
+                self.writeauth,
+                self.transport,
+                (noid, set_value)
+            )
+        if errorIndication:
+            raise RuntimeError("SNMPset of %s on %s failed" % (oid, self.host))
         return varBinds[0][1]
 
     def gettable(self, oid):
@@ -128,8 +174,7 @@ class SnmpClient(object):
         noid = nodeid(oid)
         (errorIndication, errorStatus, errorIndex, varBinds) = \
             cmdgen.CommandGenerator().nextCmd(
-                cmdgen.CommunityData(self.auth['community'],
-                                     mpModel=self.auth['version']),
+                self.readauth,
                 self.transport,
                 noid)
         if errorIndication:
