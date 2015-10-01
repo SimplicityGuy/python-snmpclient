@@ -15,5 +15,5 @@ setup(name='python-snmpclient',
         "Topic :: System :: Monitoring",
         "Topic :: Software Development"
     ],
-    #install_requires='pysnmp',
+    install_requires=['pysnmp'],
 )
