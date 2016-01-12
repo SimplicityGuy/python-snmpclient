@@ -89,12 +89,19 @@ load_mibs('SNMPv2-MIB',
 class SnmpClient(object):
     """Easy access to an snmp deamon on a host"""
 
-    def __init__(self, host, port, read_authorizations, write_authorizations):
+    def __init__(self, host, port, read_authorizations, write_authorizations,
+                 timeout=1, retries=2):
         """Set up the client and detect the community to use"""
         self.host = host
         self.port = port
+        self.timeout = timeout
+        self.retries = retries
         self.alive = False
-        self.transport = cmdgen.UdpTransportTarget((self.host, self.port))
+        self.transport = cmdgen.UdpTransportTarget((self.host, self.port),
+                                                   timeout=self.timeout,
+                                                   retries=self.retries,)
+        self.readauth = None
+        self.writeauth = None
 
         # Determine which community to use for reading values
         noid = nodeid('SNMPv2-MIB::sysName.0')
@@ -122,6 +129,9 @@ class SnmpClient(object):
 
     def get(self, oid):
         """Get a specific node in the tree"""
+        if not self.readauth:
+            return
+
         noid = nodeid(oid)
         (errorIndication, errorStatus, errorIndex, varBinds) = \
             cmdgen.CommandGenerator().getCmd(
@@ -134,6 +144,9 @@ class SnmpClient(object):
 
     def set(self, oid, value):
         """Set a specific value to a node in the tree"""
+        if not self.writeauth:
+            return
+
         initial_value = self.get(oid)
 
         # Types from RFC-1902
@@ -171,6 +184,9 @@ class SnmpClient(object):
 
     def gettable(self, oid):
         """Get a complete subtable"""
+        if not self.readauth:
+            return
+
         noid = nodeid(oid)
         (errorIndication, errorStatus, errorIndex, varBinds) = \
             cmdgen.CommandGenerator().nextCmd(
@@ -184,6 +200,9 @@ class SnmpClient(object):
     def matchtables(self, index, tables):
         """Match a list of tables using either a specific index table or the
            common tail of the OIDs in the tables"""
+        if not self.readauth:
+            return
+
         oid_to_index = {}
         result = {}
         indexlen = 1
