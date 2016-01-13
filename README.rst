@@ -34,10 +34,11 @@ The SnmpClient class
 This class wraps arround pysnmp's cmdgen.CommandGenerator to make it easier to
 address an snmp daemon.
 
-snmpclient.SnmpClient(host, port, authorizations)
-----------------------------------------
-The constructor takes a hostname/ip address, UDP port and a list of
-authorization objects.
+snmpclient.SnmpClient(host, port, read_authorizations, write_authorizations, timeout, retries)
+----------------------------------------------------------------------------------------------
+The constructor takes a hostname/ip address, UDP port, and a list of
+read authorization objects. Optionally, a list of write authorization objects,
+timeout, and number of retries may be provided as well.
 
 These objects are created as follows:
 
@@ -59,6 +60,11 @@ snmpclient.SnmpClient.get(oid)
 ------------------------------
 Takes a named oid, queries the server and returns the value of that oid on the
 server.
+
+snmpclient.SnmpClient.set(oid, value)
+------------------------------
+Takes a named oid and value, queries the server to determine its type, and
+subsequently sets value to the newly provided one.
 
 snmpclient.SnmpClient.gettable(oid)
 -----------------------------------
